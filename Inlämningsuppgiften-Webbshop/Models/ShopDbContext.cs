@@ -17,6 +17,7 @@ namespace Inlämningsuppgiften_Webbshop.Models
         public DbSet<Monitor> Monitors { get; set; }
         public DbSet<Customer> Customers { get; set; }
         public DbSet<Order> Orders { get; set; }
+        public DbSet<TopProduct> TopProducts { get; set; }
         protected override void OnConfiguring(DbContextOptionsBuilder optionsBuilder)
         {
             optionsBuilder.UseSqlServer(@"Server=.\SQLEXPRESS; Database=LvlUpGames;Trusted_Connection=True;TrustServerCertificate=True;");

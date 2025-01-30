@@ -17,6 +17,7 @@ namespace Inlämningsuppgiften_Webbshop.Models
         public string Supplier { get; set; } = string.Empty; // Supplier name
 
         // Navigation Property
+        public virtual ICollection<TopProduct> TopProducts { get; set; }
         public Category Category { get; set; } = null!;
         public ICollection<Order> Orders { get; set; } = new List<Order>();
 

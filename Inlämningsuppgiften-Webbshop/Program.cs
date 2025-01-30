@@ -47,7 +47,8 @@ namespace WindowDemo
 
             //Console.WriteLine("Nån annan text");
 
-            Admin.WelcomeText();
+            Admin.UpdatePopularProducts();
+            //Admin.WelcomeText();
 
         }
     }
