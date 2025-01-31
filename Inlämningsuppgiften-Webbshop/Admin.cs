@@ -9,6 +9,8 @@ using System.Collections;
 using Dapper;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using WindowDemo;
+using System.Diagnostics;
 
 namespace Inlämningsuppgiften_Webbshop
 {
@@ -46,12 +48,13 @@ namespace Inlämningsuppgiften_Webbshop
         private static List<Product> TopProducts = new List<Product>();
 
         public static void WelcomeText()
-        {
+        {           
             while (true)
             {
+                var orderCount = AsyncSQL.SQLStatisticsAsync().GetAwaiter().GetResult();
                 Console.Clear();
                 Console.WriteLine("Välkommen till ADMIN sidan.");
-                List<string> topText1 = new List<string> { "1. Administrera produkter", "2. Administrera kategorier", "3. Administrera kunder", "4. Se statistik(Queries)", "5. Avsluta admin läge" };
+                List<string> topText1 = new List<string> { "1. Administrera produkter", "2. Administrera kategorier", "3. Administrera kunder", "4. Se statistik(Queries)", "5. Uppdatera topp-produkter", "6. Avsluta admin läge" };
                 var windowTop4 = new Window("Admin", 1, 2, topText1);
                 windowTop4.Draw();
                 Console.Write("Vänligen välj ett alternativ: ");
@@ -74,13 +77,20 @@ namespace Inlämningsuppgiften_Webbshop
                         AdministrateCustomers();
                         break;
                     case 4:
-                        ShowStatistics();
+                        Stopwatch sw = new Stopwatch();
+                        sw.Start();
+                        Console.WriteLine("Antal ordrar som gjorts i Eskilstuna: " + orderCount);
+                        sw.Stop();
+                        Console.WriteLine("Tid för att hämta data asynkront: " + sw.ElapsedMilliseconds + " ms");
+                        Console.ReadKey(true);
                         break;
                     case 5:
-                        ExitAdmin();
+                        UpdatePopularProducts();
                         break;
+                    case 6:
+                        return;
                     default:
-                        Console.WriteLine("Vänligen ange en siffra mellan 1-5.");
+                        Console.WriteLine("Vänligen ange en siffra mellan 1-6.");
                         Thread.Sleep(2500);
                         break;
 
@@ -229,13 +239,12 @@ namespace Inlämningsuppgiften_Webbshop
 
                 var tableNames = connection.Query<string>(query);
 
-                foreach (var tableName in tableNames)
-                {
-                    Console.WriteLine($"\nInnehåll i tabell: {tableName}");
+               
+                    Console.WriteLine($"\nInnehåll i tabell: Categories");
 
                     try
                     {
-                        string selectQuery = $"SELECT TOP 10 * FROM {tableName}";
+                        string selectQuery = $"SELECT * FROM Categories";
                         var rows = connection.Query(selectQuery).Cast<IDictionary<string, object>>();
 
                         foreach (var row in rows)
@@ -247,11 +256,11 @@ namespace Inlämningsuppgiften_Webbshop
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Fel vid hämtning från tabell {tableName}: {ex.Message}");
+                        Console.WriteLine($"Fel vid hämtning från tabell Categories: {ex.Message}");
                     }
 
                     Console.WriteLine(new string('-', 50));
-                }
+                
             }
 
 
@@ -325,13 +334,12 @@ namespace Inlämningsuppgiften_Webbshop
 
                 var tableNames = connection.Query<string>(query);
 
-                foreach (var nameTable in tableNames)
-                {
-                    Console.WriteLine($"\nInnehåll i tabell: {nameTable}");
+                
+                    Console.WriteLine($"\nInnehåll i tabell: Categories");
 
                     try
                     {
-                        string selectQuery = $"SELECT TOP 10 * FROM {nameTable}";
+                        string selectQuery = $"SELECT * FROM Categories";
                         var rows = connection.Query(selectQuery).Cast<IDictionary<string, object>>();
 
                         foreach (var row in rows)
@@ -343,11 +351,11 @@ namespace Inlämningsuppgiften_Webbshop
                     }
                     catch (Exception ex)
                     {
-                        Console.WriteLine($"Fel vid hämtning från tabell {nameTable}: {ex.Message}");
+                        Console.WriteLine($"Fel vid hämtning från tabell Categories: {ex.Message}");
                     }
 
                     Console.WriteLine(new string('-', 50));
-                }
+                
             }
             string tableName;
             do
@@ -406,7 +414,7 @@ namespace Inlämningsuppgiften_Webbshop
         
                                     string query = "SELECT COLUMN_NAME FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_NAME = @TableName";
                                     var columns = connection.Query<string>(query, new { TableName = tableName }).ToList();
-
+                                    
                                     
                                     Console.WriteLine("\nKOLUMNER");
                                     Console.WriteLine("¯¯¯¯¯¯¯¯¯");
@@ -546,11 +554,7 @@ namespace Inlämningsuppgiften_Webbshop
                     switch ((CustomerSettings)nr)
                     {
                         case CustomerSettings.Radera_Kund:
-                            Console.WriteLine("=================================================================");
-                            Console.WriteLine("DET ÄR ENDAST MÖJLIGT ATT TA BORT EN KUND UTAN NÅGON/NÅGRA ORDRAR");
-                            Console.WriteLine("=================================================================");
-
-
+                           
                             using (var myDb = new ShopDbContext())
                             {
                                 Console.WriteLine("\nID \t Namn");
@@ -589,79 +593,99 @@ namespace Inlämningsuppgiften_Webbshop
                                 int customerId = int.Parse(Console.ReadLine());
                                 var customerToUpdate = myDb.Customers.FirstOrDefault(c => c.CustomerId == customerId);
 
-                                Console.WriteLine("Vilken kunduppgift vill du uppdatera");
-                                foreach (int i in Enum.GetValues(typeof(CustomerInfo)))
+                                if(customerToUpdate != null)
                                 {
-                                    Console.WriteLine(i  + ". " + Enum.GetName(typeof(CustomerInfo), i));
+                                    Console.WriteLine("Vilken kunduppgift vill du uppdatera");
+                                    foreach (int i in Enum.GetValues(typeof(CustomerInfo)))
+                                    {
+                                        Console.WriteLine(i + ". " + Enum.GetName(typeof(CustomerInfo), i));
+                                    }
+                                    Console.Write("\nAnge nummer:");
+                                    int choice = int.Parse(Console.ReadLine());
+
+                                    switch (choice)
+                                    {
+                                        case 1:
+                                            Console.Write("Ange nytt namn: ");
+                                            string newName = Console.ReadLine();
+
+                                            customerToUpdate.Name = newName;
+                                            Console.WriteLine("Kundens namn har uppdaterats till: " + newName);
+                                            myDb.SaveChanges();
+                                            Thread.Sleep(4000);
+                                            break;
+                                        case 2:
+                                            Console.Write("Ange ny gata: ");
+                                            string newStreet = Console.ReadLine();
+
+                                            customerToUpdate.Street = newStreet;
+                                            Console.WriteLine("Kundens gata har uppdaterats till: " + newStreet);
+                                            myDb.SaveChanges();
+                                            Thread.Sleep(4000);
+                                            break;
+                                        case 3:
+                                            Console.Write("Ange ny stad: ");
+                                            string newCity = Console.ReadLine();
+
+                                            customerToUpdate.City = newCity;
+                                            Console.WriteLine("Kundens stad har uppdaterats till: " + newCity);
+                                            myDb.SaveChanges();
+                                            Thread.Sleep(4000);
+                                            break;
+                                        case 4:
+                                            Console.Write("Ange nytt land: ");
+                                            string newCountry = Console.ReadLine();
+
+                                            customerToUpdate.Country = newCountry;
+                                            Console.WriteLine("Kundens land har uppdaterats till: " + newCountry);
+                                            myDb.SaveChanges();
+                                            Thread.Sleep(4000);
+                                            break;
+                                        case 5:
+                                            Console.Write("Ange nytt nummer: ");
+                                            string newNumber = Console.ReadLine();
+
+                                            customerToUpdate.Phone = newNumber;
+                                            Console.WriteLine("Kundens mobilnummer har uppdaterats till: " + newNumber);
+                                            myDb.SaveChanges();
+                                            Thread.Sleep(4000);
+                                            break;
+                                        case 6:
+                                            Console.Write("Ange nytt mail: ");
+                                            string newMail = Console.ReadLine();
+
+                                            customerToUpdate.Email = newMail;
+                                            Console.WriteLine("Kundens mail har uppdaterats till: " + newMail);
+                                            myDb.SaveChanges();
+                                            Thread.Sleep(4000);
+                                            break;
+                                        case 7:
+                                            Console.Write("Ange nytt ålder: ");
+                                            int newAge = int.Parse(Console.ReadLine());
+
+                                            customerToUpdate.Age = newAge;
+                                            Console.WriteLine("Kundens mobilnummer har uppdaterats till: " + newAge);
+                                            myDb.SaveChanges();
+                                            Thread.Sleep(4000);
+                                            break;
+                                    }
                                 }
-                                Console.Write("\nAnge nummer:");
-                                int choice = int.Parse(Console.ReadLine());
-                       
-                                switch (choice)
+                                else
                                 {
-                                    case 1:
-                                        Console.Write("Ange nytt namn: ");
-                                        string newName = Console.ReadLine();
-
-                                        customerToUpdate.Name = newName;
-                                        Console.WriteLine("Kundens namn har uppdaterats till: " + newName);
-                                        Thread.Sleep(4000);
-                                        break;
-                                    case 2:
-                                        Console.Write("Ange ny gata: ");
-                                        string newStreet = Console.ReadLine();
-
-                                        customerToUpdate.Street = newStreet;
-                                        Console.WriteLine("Kundens gata har uppdaterats till: " + newStreet);
-                                        Thread.Sleep(4000);
-                                        break;
-                                    case 3:
-                                        Console.Write("Ange ny stad: ");
-                                        string newCity = Console.ReadLine();
-
-                                        customerToUpdate.City = newCity;
-                                        Console.WriteLine("Kundens stad har uppdaterats till: " + newCity);
-                                        Thread.Sleep(4000);
-                                        break;
-                                    case 4:
-                                        Console.Write("Ange nytt land: ");
-                                        string newCountry = Console.ReadLine();
-
-                                        customerToUpdate.Country = newCountry;
-                                        Console.WriteLine("Kundens land har uppdaterats till: " + newCountry);
-                                        Thread.Sleep(4000);
-                                        break;
-                                    case 5:
-                                        Console.Write("Ange nytt nummer: ");
-                                        string newNumber = Console.ReadLine();
-
-                                        customerToUpdate.Phone = newNumber;
-                                        Console.WriteLine("Kundens mobilnummer har uppdaterats till: " + newNumber);
-                                        Thread.Sleep(4000);
-                                        break;
-                                    case 6:
-                                        Console.Write("Ange nytt mail: ");
-                                        string newMail = Console.ReadLine();
-
-                                        customerToUpdate.Email = newMail;
-                                        Console.WriteLine("Kundens mail har uppdaterats till: " + newMail);
-                                        Thread.Sleep(4000);
-                                        break;
-                                    case 7:
-                                        Console.Write("Ange nytt ålder: ");
-                                        int newAge = int.Parse(Console.ReadLine());
-
-                                        customerToUpdate.Age = newAge;
-                                        Console.WriteLine("Kundens mobilnummer har uppdaterats till: " + newAge);
-                                        Thread.Sleep(4000);
-                                        break; 
+                                    Console.WriteLine("Ingen kund med ID:et: " + customerId + " hittades.");
+                                    Console.ReadKey(true);
                                 }
-
+                                
+                                
                             }
                             break;
                         case CustomerSettings.Beställningshistorik:
                             using (var myDb = new ShopDbContext())
                             {
+                                foreach(var customer in myDb.Customers)
+                                {
+                                    Console.WriteLine(customer.CustomerId + "\t" + customer.Name);
+                                }
                                 Console.Write("\nAnge kundId: ");
                                 int specificCustomerId = int.Parse(Console.ReadLine());
 
@@ -689,19 +713,7 @@ namespace Inlämningsuppgiften_Webbshop
                 }
             }
         }
-       
-        public static void ShowStatistics()
-        {
-            //detta ska göras med DAPPER efter jag infört massa testdata
-            Console.WriteLine("test");
-            Console.ReadKey(true);
-        }
-
-        public static void ExitAdmin()
-        {
-            return;
-        }
-
+      
         public static void CreateProduct()
         {
             using (var myDb = new Models.ShopDbContext())
@@ -1040,13 +1052,17 @@ namespace Inlämningsuppgiften_Webbshop
         {
             using (var myDb = new ShopDbContext())
             {
-                //FORTSÄTT MED DENNA METOD - EJ KLAR  
-                var topProductIds = myDb.TopProducts.Select(tp => tp.ProductId).ToList();
-                var TopProducts = myDb.Products.Where(p => topProductIds.Contains(p.ProductId)).ToList();
+                
+                var TopProducts = myDb.TopProducts
+                    .Join(myDb.Products, tp => tp.ProductId, p => p.ProductId, (tp, p) => new { tp.Ranking, p.Name })
+                    .OrderBy(tp => tp.Ranking)
+                    .ToList();
 
+                
+                Console.WriteLine("Aktuella topprodukter:");
                 for (int i = 0; i < TopProducts.Count; i++)
                 {
-                    Console.WriteLine($"{i + 1} \t {TopProducts[i]?.Name ?? "Ingen produkt"}");
+                    Console.WriteLine($"{TopProducts[i].Ranking} \t {TopProducts[i].Name}");
                 }
 
                 Console.Write("\nVilken topprodukt vill du byta ut? (1-3): ");
@@ -1056,6 +1072,7 @@ namespace Inlämningsuppgiften_Webbshop
                     return;
                 }
 
+                
                 Console.WriteLine("\n==========================");
                 Console.WriteLine("Tillgängliga produkter:");
                 Console.WriteLine("==========================\n");
@@ -1065,22 +1082,33 @@ namespace Inlämningsuppgiften_Webbshop
                     Console.WriteLine($"{product.ProductId} \t {product.Name.PadRight(26)} \t {product.Price}");
                 }
 
-                
-                var currentTopProduct = myDb.TopProducts.FirstOrDefault(x => x.Ranking == choice);
-                
-                Console.Write("Ange nya Topp-produktens ID : ");
-                int newTopProductId = int.Parse(Console.ReadLine());
-                currentTopProduct = myDb.TopProducts.FirstOrDefault(x=> x.ProductId == newTopProductId);
-
-                if (currentTopProduct == null)
+                Console.Write("\nAnge nya topproduktens ID: ");
+                if (!int.TryParse(Console.ReadLine(), out int newTopProductId))
                 {
-                    Console.WriteLine("Den angivna produkten hittades inte.");
+                    Console.WriteLine("Ogiltigt ID. Försök igen.");
                     return;
                 }
 
-                Console.WriteLine("Topp-produkt utbytt.");
-                myDb.SaveChanges();
+                var newTopProduct = myDb.Products.FirstOrDefault(p => p.ProductId == newTopProductId);
+                if (newTopProduct == null)
+                {
+                    Console.WriteLine("Produkten med det angivna ID:t hittades inte.");
+                    return;
+                }
+    
+                var topProductToUpdate = myDb.TopProducts.FirstOrDefault(tp => tp.Ranking == choice);
+                if (topProductToUpdate != null)
+                {
+                    topProductToUpdate.ProductId = newTopProductId;
+                    myDb.SaveChanges();
+                    Console.WriteLine("Topp-produkt utbytt.");
+                    Thread.Sleep(3000);
+                }
+                else
+                {
+                    Console.WriteLine("Misslyckades med att uppdatera topprodukten.");
+                }
             }
-        }
+        }        
     }
 }

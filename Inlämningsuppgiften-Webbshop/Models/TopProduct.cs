@@ -8,10 +8,10 @@ namespace Inlämningsuppgiften_Webbshop.Models
 {
     internal class TopProduct
     {
-        public int Id { get; set; }  // Unikt ID för varje topprodukt  
-        public int ProductId { get; set; }  // Referens till produktens ID  
-        public int Ranking { get; set; }  // Ranking för topprodukten
+        public int Id { get; set; }  
+        public int ProductId { get; set; }  
+        public int Ranking { get; set; }  
 
-        public virtual Product Product { get; set; }  // Navigation property  
+        public virtual Product Product { get; set; }  
     }
 }
